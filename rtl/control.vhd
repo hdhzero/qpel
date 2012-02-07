@@ -25,7 +25,10 @@ entity control is
 end control;
 
 architecture control of control is
-    type state is (idle, loading0, loading1, loading2, sad0);
+    type state is (
+        idle, loading0, loading1, loading2, sad0, sad1, sad2, sad3, sad4, sad5, sad6,
+        sad7, sad8, finished
+    );
 
     signal current_state : state;
     signal next_state    : state;

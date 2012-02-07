@@ -7,13 +7,13 @@ entity qpel is
         clock  : in  std_logic;
         reset  : in  std_logic;
         start  : in  std_logic;
-        hp_sad : in  std_logic_vector(13 downto 0);
+        hp_sad : in  std_logic_vector(14 downto 0);
         hp_x   : in  std_logic_vector(2 downto 0);
         hp_y   : in  std_logic_vector(2 downto 0);
         hp_mb  : in  std_logic_vector(151 downto 0);
         pel_mb : in  std_logic_vector(63 downto 0);
         done   : out std_logic;
-        qp_sad : out std_logic_vector(13 downto 0);
+        qp_sad : out std_logic_vector(14 downto 0);
         qp_x   : out std_logic_vector(2 downto 0);
         qp_y   : out std_logic_vector(2 downto 0)
     );
@@ -105,6 +105,45 @@ architecture qpel of qpel is
     );
     end component comparator;
 
+    component sad is
+    port (
+        clock : in std_logic;
+        reset : in std_logic;
+        start : in std_logic;
+        line0 : in std_logic_vector(63 downto 0);
+        line1 : in std_logic_vector(63 downto 0);
+        sadv  : out std_logic_vector(14 downto 0)
+    );
+    end component sad;
+
+    component row_mux is
+    port (
+        vec  : in std_logic_vector(2 downto 0);
+        sel  : in std_logic;
+        din  : in std_logic_vector(143 downto 0);
+        dout : out std_logic_vector(63 downto 0)
+    );
+    end component row_mux;
+
+    component diag_mux is
+    port (
+        vec : in std_logic_vector(2 downto 0);
+        sel  : in std_logic;
+        din  : in std_logic_vector(143 downto 0);
+        dout : out std_logic_vector(63 downto 0)
+    );
+    end component diag_mux;
+
+    component col_mux is
+    port (
+        sel  : in std_logic_vector(2 downto 0);
+        din  : in std_logic_vector(135 downto 0);
+        dout : out std_logic_vector(63 downto 0)
+    );
+    end component col_mux;
+
+
+
     signal pel_wren  : std_logic;
     signal row_wren  : std_logic;
     signal col_wren  : std_logic;
@@ -127,12 +166,36 @@ architecture qpel of qpel is
     signal line0 : std_logic_vector(151 downto 0);
     signal line1 : std_logic_vector(151 downto 0);
 
-    signal row_sel  : std_logic;
-    signal diag_sel : std_logic;
-    signal compare  : std_logic;
+    signal sad_start : std_logic;
+    signal row_sel   : std_logic;
+    signal diag_sel  : std_logic;
+    signal compare   : std_logic;
+    signal hp_x_reg  : std_logic_vector(2 downto 0);
+    signal row_64    : std_logic_vector(63 downto 0);
+    signal col_64    : std_logic_vector(63 downto 0);
+    signal diag_64   : std_logic_vector(63 downto 0);
+    signal row_sad   : std_logic_vector(14 downto 0);
+    signal col_sad   : std_logic_vector(14 downto 0);
+    signal diag_sad  : std_logic_vector(14 downto 0);
+    signal row_vec   : std_logic_vector(5 downto 0);
+    signal col_vec   : std_logic_vector(5 downto 0);
+    signal diag_vec  : std_logic_vector(5 downto 0);
+
+
 
 begin
     pel_din <= pel_mb;
+
+    col_mux_u : col_mux
+    port map (hp_x_reg, col_dout, col_64);
+
+    row_mux_u : row_mux
+    port map (hp_x_reg, row_sel, row_dout, row_64);
+
+    diag_mux_u : diag_mux
+    port map (hp_x_reg, diag_sel, diag_dout, diag_64);
+
+
 
     control_u : control
     port map (
@@ -167,6 +230,16 @@ begin
         row_addr, col_addr, diag_addr, pel_din, row_din, col_din, diag_din,
         pel_dout, row_dout, col_dout, diag_dout
     );
+
+    row_sad_u : sad
+    port map (clock, reset, sad_start, pel_dout, row_64, row_sad);
+
+    col_sad_u : sad
+    port map (clock, reset, sad_start, pel_dout, col_64, col_sad);
+
+    diag_sad_u : sad
+    port map (clock, reset, sad_start, pel_dout, diag_64, diag_sad);
+
        
     comparator_u : comparator
     port map (
@@ -181,7 +254,8 @@ begin
         row_vec  => row_vec,
         col_vec  => col_vec,
         diag_vec => diag_vec,
-        sad      => sad,
-        vector   => vector
+        sad      => qp_sad,
+        vector(2 downto 0) => qp_y,
+        vector(5 downto 3) => qp_x
     );
 end qpel;

@@ -4,7 +4,7 @@ use ieee.numeric_std.all;
 
 entity row_mux is
     port (
-        vec : in std_logic_vector(2 downto 0);
+        vec  : in std_logic_vector(2 downto 0);
         sel  : in std_logic;
         din  : in std_logic_vector(143 downto 0);
         dout : out std_logic_vector(63 downto 0)
