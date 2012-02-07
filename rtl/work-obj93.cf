@@ -1,0 +1,4 @@
+v 3
+file . "comparator.vhd" "20120207021433.000" "20120206231435.517":
+  entity comparator at 1( 0) + 0 on 11;
+  architecture comparator of comparator at 23( 743) + 0 on 12;

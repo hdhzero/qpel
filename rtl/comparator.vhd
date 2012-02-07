@@ -21,12 +21,13 @@ entity comparator is
 end comparator;
 
 architecture comparator of comparator is
+    type state is (idle, loading, comparing0, comparing1);
+
+    signal current_state : state;
+    signal next_state    : state;
+
     signal best_sad   : std_logic_vector(14 downto 0);
     signal best_vec   : std_logic_vector(5 downto 0);
-    signal best_sad_s : std_logic_vector(14 downto 0);
-    signal best_vec_s : std_logic_vector(5 downto 0);
-    signal rcd_sad    : std_logic_vector(14 downto 0);
-    signal rcd_vec    : std_logic_vector(5 downto 0);
     signal rc_sad     : std_logic_vector(14 downto 0);
     signal rc_vec     : std_logic_vector(5 downto 0);
 begin
@@ -38,23 +39,55 @@ begin
         if reset = '1' then
             best_sad <= (others => '1');
             best_vec <= "010010";
+            rc_sad   <= (others => '1');
+            rc_vec   <= "010010";
+            current_state <= idle;
         elsif clock'event and clock = '1' then
-            if start = '1' then
-                best_sad <= hp_sad;
-                best_vec <= "010010";
-            elsif compare = '1' then
-                best_sad <= best_sad_s;
-                best_vec <= best_vec_s;
-            end if;
+            case current_state is
+                when idle =>
+                    if start = '1' then
+                        current_state <= loading;
+                    elsif compare = '1' then
+                        current_state <= comparing0;
+                    else
+                        current_state <= idle;
+                    end if;
+
+                when loading =>
+                    best_sad <= hp_sad;
+                    best_vec <= "010010";
+                    current_state <= idle;
+
+                when comparing0 =>
+                    if unsigned(row_sad) < unsigned(col_sad) then
+                        rc_sad <= row_sad;
+                        rc_vec <= row_vec;
+                    else
+                        rc_sad <= col_sad;
+                        rc_vec <= col_vec;
+                    end if;
+
+                    if unsigned(best_sad) < unsigned(diag_sad) then
+                        best_sad <= best_sad;
+                        best_vec <= best_vec;
+                    else
+                        best_sad <= diag_sad;
+                        best_vec <= diag_vec;
+                    end if;
+
+                    current_state <= comparing1;
+
+                when comparing1 =>
+                    if unsigned(best_sad) < unsigned(rc_sad) then
+                        best_sad <= best_sad;
+                        best_vec <= best_vec;
+                    else
+                        best_sad <= rc_sad;
+                        best_vec <= rc_vec;
+                    end if;
+
+                    current_state <= idle;
+            end case;
         end if;
     end process;
-
-    best_sad_s <= best_sad when best_sad < rcd_sad else rcd_sad;
-    rcd_sad    <= diag_sad when diag_sad < rc_sad else rc_sad;
-    rc_sad     <= col_sad  when col_sad  < row_sad else row_sad;
-
-    best_vec_s <= best_vec when best_sad < rcd_sad else rcd_vec;
-    rcd_vec    <= diag_vec when diag_sad < rc_sad else rc_vec;
-    rc_vec     <= col_vec  when col_sad  < row_sad else row_vec;
-
 end comparator;
