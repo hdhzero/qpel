@@ -9,8 +9,7 @@ entity sad is
         start : in std_logic;
         line0 : in std_logic_vector(63 downto 0);
         line1 : in std_logic_vector(63 downto 0);
-        sadv  : out std_logic_vector(13 downto 0);
-        done  : out std_logic
+        sadv  : out std_logic_vector(14 downto 0)
     );
 end sad;
 
@@ -42,40 +41,83 @@ architecture sad of sad is
     );
     end component sad_tree;
 
-    signal sres   : std_logic_vector(10 downto 0);
-    signal sadv_s : std_logic_vector(13 downto 0);
+    type state is (idle, loading0, loading1, loading2, stop);
+
+    signal current_state : state;
+    signal next_state    : state;
+
+    signal sres      : std_logic_vector(10 downto 0);
+    signal sad_reg   : std_logic_vector(14 downto 0);
+    signal sad_s     : std_logic_vector(14 downto 0);
+    signal counter   : integer;
+    signal counter_s : integer;
 
 begin
-    process(clock, reset)
+    sadv <= sad_reg;
+
+    process(clock, reset, next_state, sad_s, counter_s)
     begin
         if reset = '1' then
             current_state <= idle;
+            sad_reg       <= (others => '0');
+            counter       <= 0;
         elsif clock'event and clock = '1' then
             current_state <= next_state;
+            sad_reg       <= sad_s;
+            counter       <= counter_s;
         end if;
     end process;
 
-    process(current_state, start)
+    process(current_state, counter, start, sres, sad_reg)
     begin
         case current_state is
             when idle =>
+                sad_s <= (others => '0');
+                counter_s <= 0;
+
                 if start = '1' then
-                    next_state <= loading;
+                    next_state <= loading0;
                 else
                     next_state <= idle;
                 end if;
 
-            when loading =>
-                
+            when loading0 =>
+                sad_s <= (others => '0');
+                counter_s <= 0;
+                next_state <= loading1;
+
+            when loading1 =>
+                sad_s <= (others => '0');
+                counter_s <= 0;
+                next_state <= loading2;
+
+            when loading2 =>
+                sad_s <= std_logic_vector(unsigned(sad_reg) + unsigned("0000" & sres));
+                counter_s <= counter + 1;
+
+                if counter < 8 then
+                    next_state <= loading2;
+                else
+                    next_state <= stop;
+                end if;
+
+            when stop =>
+                sad_s <= sad_reg;
+                counter_s <= 0;
+
+                if start = '1' then
+                    next_state <= idle;
+                else
+                    next_state <= stop;
+                end if;
+        end case;
     end process;
 
     sad_tree_u : sad_tree
-    port map (clock, reset, line0(7 downto 0), line0(15 downto 8, line0(23 downto 16),
+    port map (clock, reset, line0(7 downto 0), line0(15 downto 8), line0(23 downto 16),
         line0(31 downto 24), line0(39 downto 32), line0(47 downto 40), line0(55 downto 48),
-        line0(63 downto 56), line1(7 downto 0), line1(15 downto 8, line1(23 downto 16),
+        line0(63 downto 56), line1(7 downto 0), line1(15 downto 8), line1(23 downto 16),
         line1(31 downto 24), line1(39 downto 32), line1(47 downto 40), line1(55 downto 48),
         line1(63 downto 56), sres);
-
-
 end sad;
 

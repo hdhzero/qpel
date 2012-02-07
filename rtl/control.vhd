@@ -96,7 +96,7 @@ begin
                         col_dw <= "00011";
                         row_up <= "00010";
                 end case;
-            end case;
+            end if;
         end if;
     end process;
 
