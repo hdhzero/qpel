@@ -171,6 +171,7 @@ architecture qpel of qpel is
     signal diag_sel  : std_logic;
     signal compare   : std_logic;
     signal hp_x_reg  : std_logic_vector(2 downto 0);
+    signal hp_y_reg  : std_logic_vector(2 downto 0);
     signal row_64    : std_logic_vector(63 downto 0);
     signal col_64    : std_logic_vector(63 downto 0);
     signal diag_64   : std_logic_vector(63 downto 0);
@@ -181,10 +182,25 @@ architecture qpel of qpel is
     signal col_vec   : std_logic_vector(5 downto 0);
     signal diag_vec  : std_logic_vector(5 downto 0);
 
-
+    signal start_reg : std_logic;
 
 begin
     pel_din <= pel_mb;
+
+    process(clock, reset, start, start_reg)
+    begin
+        if reset = '1' then
+            hp_x_reg  <= "000";
+            start_reg <= '0';
+        elsif clock'event and clock = '1' then
+            start_reg <= start;
+
+            if start_reg = '1' then
+                hp_x_reg <= hp_x;
+                hp_y_reg <= hp_y;
+            end if;
+        end if;
+    end process;
 
     col_mux_u : col_mux
     port map (hp_x_reg, col_dout, col_64);
